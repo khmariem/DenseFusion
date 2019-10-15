@@ -68,8 +68,6 @@ class PoseDataset(data.Dataset):
                 #     if '</DataArray>' in input_line:
                 #         nb2=nb-1
                 #         break
-            # print(nb1)
-            # print(nb2)
                 self.cld[class_id].append([float(input_line[0]), float(input_line[1]), float(input_line[2])])
             self.cld[class_id] = np.array(self.cld[class_id])
             input_file.close()
@@ -105,7 +103,6 @@ class PoseDataset(data.Dataset):
             for j in range(label.shape[1]):
                 if label[i,j]!=0:
                     label[i,j]=(label[i,j]-1)//4
-        #meta = scio.loadmat('{0}/{1}-meta.mat'.format(self.root, self.list[index]))
         with open('{0}/{1}-poses.yaml'.format(self.root, self.list[index]), 'r') as s:
             meta = yaml.safe_load(s)
 
@@ -139,7 +136,6 @@ class PoseDataset(data.Dataset):
         while 1:
             idx = np.random.randint(0, len(obj))
             mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
-            #print('meta', meta[obj[idx]]['label'])
             mask_label = ma.getmaskarray(ma.masked_equal(label, meta[obj[idx]]['label']+1))
             mask = mask_label * mask_depth
             if len(mask.nonzero()[0]) > self.minimum_num_pt:

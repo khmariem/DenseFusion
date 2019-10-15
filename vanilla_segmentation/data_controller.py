@@ -47,7 +47,6 @@ class SegDataset(data.Dataset):
         label = np.array(Image.open('{0}/{1}-label.png'.format(self.root, self.path[index])))
         with open('{0}/{1}-poses.yaml'.format(self.root, self.path[index]), 'r') as s:
             meta = yaml.safe_load(s)
-        #meta = scio.loadmat('{0}/{1}-meta.mat'.format(self.root, self.path[index]))
         if not self.use_noise:
             rgb = np.array(Image.open('{0}{1}.png'.format(self.root, self.path[index])).convert("RGB"))
         else:
