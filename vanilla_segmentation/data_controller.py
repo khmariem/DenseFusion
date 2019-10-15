@@ -11,6 +11,7 @@ import random
 import scipy.misc
 import scipy.io as scio
 import os
+import yaml
 from PIL import ImageEnhance
 from PIL import ImageFilter
 
@@ -44,26 +45,28 @@ class SegDataset(data.Dataset):
         index = random.randint(0, self.data_len - 10)
 
         label = np.array(Image.open('{0}/{1}-label.png'.format(self.root, self.path[index])))
-        meta = scio.loadmat('{0}/{1}-meta.mat'.format(self.root, self.path[index]))
+        with open('{0}/{1}-poses.yaml'.format(self.root, self.path[index]), 'r') as s:
+            meta = yaml.safe_load(s)
+        #meta = scio.loadmat('{0}/{1}-meta.mat'.format(self.root, self.path[index]))
         if not self.use_noise:
-            rgb = np.array(Image.open('{0}/{1}-color.png'.format(self.root, self.path[index])).convert("RGB"))
+            rgb = np.array(Image.open('{0}{1}.png'.format(self.root, self.path[index])).convert("RGB"))
         else:
-            rgb = np.array(self.trancolor(Image.open('{0}/{1}-color.png'.format(self.root, self.path[index])).convert("RGB")))
+            rgb = np.array(self.trancolor(Image.open('{0}{1}.png'.format(self.root, self.path[index])).convert("RGB")))
 
-        if self.path[index][:8] == 'data_syn':
-            rgb = Image.open('{0}/{1}-color.png'.format(self.root, self.path[index])).convert("RGB")
-            rgb = ImageEnhance.Brightness(rgb).enhance(1.5).filter(ImageFilter.GaussianBlur(radius=0.8))
-            rgb = np.array(self.trancolor(rgb))
-            seed = random.randint(0, self.back_len - 10)
-            back = np.array(self.trancolor(Image.open('{0}/{1}-color.png'.format(self.root, self.path[seed])).convert("RGB")))
-            back_label = np.array(Image.open('{0}/{1}-label.png'.format(self.root, self.path[seed])))
-            mask = ma.getmaskarray(ma.masked_equal(label, 0))
-            back = np.transpose(back, (2, 0, 1))
-            rgb = np.transpose(rgb, (2, 0, 1))
-            rgb = rgb + np.random.normal(loc=0.0, scale=5.0, size=rgb.shape)
-            rgb = back * mask + rgb
-            label = back_label * mask + label
-            rgb = np.transpose(rgb, (1, 2, 0))
+        # if self.path[index][:8] == 'data_syn':
+        #     rgb = Image.open('{0}/{1}-color.png'.format(self.root, self.path[index])).convert("RGB")
+        #     rgb = ImageEnhance.Brightness(rgb).enhance(1.5).filter(ImageFilter.GaussianBlur(radius=0.8))
+        #     rgb = np.array(self.trancolor(rgb))
+        #     seed = random.randint(0, self.back_len - 10)
+        #     back = np.array(self.trancolor(Image.open('{0}/{1}-color.png'.format(self.root, self.path[seed])).convert("RGB")))
+        #     back_label = np.array(Image.open('{0}/{1}-label.png'.format(self.root, self.path[seed])))
+        #     mask = ma.getmaskarray(ma.masked_equal(label, 0))
+        #     back = np.transpose(back, (2, 0, 1))
+        #     rgb = np.transpose(rgb, (2, 0, 1))
+        #     rgb = rgb + np.random.normal(loc=0.0, scale=5.0, size=rgb.shape)
+        #     rgb = back * mask + rgb
+        #     label = back_label * mask + label
+        #     rgb = np.transpose(rgb, (1, 2, 0))
             #scipy.misc.imsave('embedding_final/rgb_{0}.png'.format(index), rgb)
             #scipy.misc.imsave('embedding_final/label_{0}.png'.format(index), label)
             
@@ -82,7 +85,8 @@ class SegDataset(data.Dataset):
                 label = np.flipud(label)
                 
 
-        obj = meta['cls_indexes'].flatten().astype(np.int32)
+        #obj = meta['cls_indexes'].flatten().astype(np.int32)
+        obj = [k for k in meta]
         obj = np.append(obj, [0], axis=0)
         target = copy.deepcopy(label)
 

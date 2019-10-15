@@ -21,7 +21,7 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
 from datasets.ycb.dataset import PoseDataset as PoseDataset_ycb
-from datasets.linemod.dataset import PoseDataset as PoseDataset_linemod
+#from datasets.linemod.dataset import PoseDataset as PoseDataset_linemod
 from datasets.wrs.dataset import PoseDataset as PoseDataset_wrs
 from lib.network import PoseNet, PoseRefineNet
 from lib.loss import Loss
@@ -67,7 +67,7 @@ def main():
         opt.repeat_epoch = 20
     elif opt.dataset == "wrs":
         opt.num_objects = 4
-        #opt.num_points = 500
+        opt.num_points = 1000
         opt.outf = 'trained_models/wrs'
         opt.log_dir = 'experiments/logs/wrs'
         opt.repeat_epoch = 20
@@ -77,17 +77,30 @@ def main():
 
     estimator = PoseNet(num_points = opt.num_points, num_obj = opt.num_objects)
     estimator.cuda()
+    #estimator_dict=torch.load("/home/nrp-telechan/DenseFusion/trained_models/ycb/pose_model_26_0.012863246640872631.pth")
+    #print(estimator_dict)
+    #print('------------')
+    #estimator_model_dict=estimator.state_dict()
+    #print(estimator_model_dict)
+    #estimator_dict={k: v for k, v in estimator_dict.items() if k in estimator_model_dict}
+    #print(estimator_dict)
     #Load pre-trained network
-    estimator.load_state_dict(torch.load(opt.model), strict=False)
+    #estimator_model_dict.update(estimator_dict)
+    #print(estimator_dict)
+    #estimator.load_state_dict(estimator_model_dict, strict=False)
     #estimator.eval()
-    estimator.train()
+    #estimator.train()
 
     refiner = PoseRefineNet(num_points = opt.num_points, num_obj = opt.num_objects)
     refiner.cuda()
-    #Load pre-trained network
-    refiner.load_state_dict(torch.load(opt.refine_model), strict=False)
+    # refiner_dict=torch.load("/home/nrp-telechan/DenseFusion/trained_models/ycb/pose_refine_model_69_0.009449292959118935.pth")
+    # refiner_model_dict=refiner.state_dict()
+    # refiner_dict={k: v for k, v in refiner_dict.items() if k in refiner_model_dict}
+    # #Load pre-trained network
+    # refiner_model_dict.update(refiner_dict)
+    # refiner.load_state_dict(refiner_model_dict) # strict=False)
     #refiner.eval()
-    refiner.train()
+    #refiner.train()
 
     if opt.resume_posenet != '':
         estimator.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_posenet)))

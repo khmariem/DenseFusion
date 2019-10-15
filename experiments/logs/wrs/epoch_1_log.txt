@@ -1,0 +1,2 @@
+2019-10-16 01:08:44,286 : Train time 00h 00m 00s, Training started
+2019-10-16 01:08:46,460 : Train time 00h 00m 02s Epoch 1 Batch 1 Frame 8 Avg_dis:1108.6515884399414

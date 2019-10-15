@@ -19,9 +19,9 @@ import yaml
 class PoseDataset(data.Dataset):
     def __init__(self, mode, num_pt, add_noise, root, noise_trans, refine):
         if mode == 'train':
-            self.path = 'datasets/ycb/dataset_config/train_data_list.txt'
+            self.path = 'datasets/wrs/dataset_config/train_data_list.txt'
         elif mode == 'test':
-            self.path = 'datasets/ycb/dataset_config/test_data_list.txt'
+            self.path = 'datasets/wrs/dataset_config/test_data_list.txt'
         self.num_pt = num_pt
         self.root = root
         self.add_noise = add_noise
@@ -29,7 +29,6 @@ class PoseDataset(data.Dataset):
 
         self.list = []
         self.real = []
-        self.syn = []
         input_file = open(self.path)
         while 1:
             input_line = input_file.readline()
@@ -37,18 +36,14 @@ class PoseDataset(data.Dataset):
                 break
             if input_line[-1:] == '\n':
                 input_line = input_line[:-1]
-            if input_line[:5] == 'data/':
-                self.real.append(input_line)
-            else:
-                self.syn.append(input_line)
+            self.real.append(input_line)
             self.list.append(input_line)
         input_file.close()
 
         self.length = len(self.list)
         self.len_real = len(self.real)
-        self.len_syn = len(self.syn)
 
-        class_file = open('datasets/ycb/dataset_config/classes.txt')
+        class_file = open('datasets/wrs/dataset_config/classes.txt')
         class_id = 1
         self.cld = {}
         while 1:
@@ -56,32 +51,35 @@ class PoseDataset(data.Dataset):
             if not class_input:
                 break
 
-            input_file = open('{0}/models/{1}/points.xyz'.format(self.root, class_input[:-1]))
+            input_file = open('{0}/models/{1}.xyz'.format(self.root, class_input[:-1]))
             self.cld[class_id] = []
+            # nb1=0
+            # nb2=0
+            # nb=0
             while 1:
+                #nb+=1
                 input_line = input_file.readline()
                 if not input_line:
                     break
                 input_line = input_line[:-1].split(' ')
+                # if nb==0 and 'Name="Points"' in input_line:
+                #     nb1=nb+1
+                # if nb2==0:
+                #     if '</DataArray>' in input_line:
+                #         nb2=nb-1
+                #         break
+            # print(nb1)
+            # print(nb2)
                 self.cld[class_id].append([float(input_line[0]), float(input_line[1]), float(input_line[2])])
             self.cld[class_id] = np.array(self.cld[class_id])
             input_file.close()
             
             class_id += 1
 
-        # self.cam_cx_1 = 312.9869
-        # self.cam_cy_1 = 241.3109
-        # self.cam_fx_1 = 1066.778
-        # self.cam_fy_1 = 1067.487
         self.cam_cx = 320.0
         self.cam_cy = 240.0
         self.cam_fx = 528.0
         self.cam_fy = 528.0
-
-        # self.cam_cx_2 = 323.7872
-        # self.cam_cy_2 = 279.6921
-        # self.cam_fx_2 = 1077.836
-        # self.cam_fy_2 = 1078.189
 
         self.xmap = np.array([[j for i in range(640)] for j in range(480)])
         self.ymap = np.array([[i for i in range(640)] for j in range(480)])
@@ -91,7 +89,7 @@ class PoseDataset(data.Dataset):
         self.noise_img_scale = 7.0
         self.minimum_num_pt = 50
         self.norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        self.symmetry_obj_idx = [12, 15, 18, 19, 20]
+        self.symmetry_obj_idx = [1]
         self.num_pt_mesh_small = 500
         self.num_pt_mesh_large = 2600
         self.refine = refine
@@ -100,31 +98,25 @@ class PoseDataset(data.Dataset):
         print(len(self.list))
 
     def __getitem__(self, index):
-        img = Image.open('{0}/{1}-color.png'.format(self.root, self.list[index]))
+        img = Image.open('{0}/{1}.png'.format(self.root, self.list[index]))
         depth = np.array(Image.open('{0}/{1}-depth.png'.format(self.root, self.list[index])))
         label = np.array(Image.open('{0}/{1}-label.png'.format(self.root, self.list[index])))
+        for i in range(label.shape[0]):
+            for j in range(label.shape[1]):
+                if label[i,j]!=0:
+                    label[i,j]=(label[i,j]-1)//4
         #meta = scio.loadmat('{0}/{1}-meta.mat'.format(self.root, self.list[index]))
-        with open('{0}/{1}-meta.mat'.format(self.root, self.list[index]), 'r') as s:
+        with open('{0}/{1}-poses.yaml'.format(self.root, self.list[index]), 'r') as s:
             meta = yaml.safe_load(s)
-
-        # if self.list[index][:8] != 'data_syn' and int(self.list[index][5:9]) >= 60:
-        #     cam_cx = self.cam_cx_2
-        #     cam_cy = self.cam_cy_2
-        #     cam_fx = self.cam_fx_2
-        #     cam_fy = self.cam_fy_2
-        # else:
-        #     cam_cx = self.cam_cx_1
-        #     cam_cy = self.cam_cy_1
-        #     cam_fx = self.cam_fx_1
-        #     cam_fy = self.cam_fy_1
 
         mask_back = ma.getmaskarray(ma.masked_equal(label, 0))
 
+        self.add_noise=False
         add_front = False
         if self.add_noise:
             for k in range(5):
                 seed = random.choice(self.syn)
-                front = np.array(self.trancolor(Image.open('{0}/{1}-color.png'.format(self.root, seed)).convert("RGB")))
+                front = np.array(self.trancolor(Image.open('{0}/{1}.png'.format(self.root, seed)).convert("RGB")))
                 front = np.transpose(front, (2, 0, 1))
                 f_label = np.array(Image.open('{0}/{1}-label.png'.format(self.root, seed)))
                 front_label = np.unique(f_label).tolist()[1:]
@@ -142,14 +134,13 @@ class PoseDataset(data.Dataset):
                     label = t_label
                     add_front = True
                     break
-
-        #obj = meta['cls_indexes'].flatten().astype(np.int32)
         obj = [k for k in meta]
 
         while 1:
             idx = np.random.randint(0, len(obj))
             mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
-            mask_label = ma.getmaskarray(ma.masked_equal(label, meta[obj[idx]]['label']))
+            #print('meta', meta[obj[idx]]['label'])
+            mask_label = ma.getmaskarray(ma.masked_equal(label, meta[obj[idx]]['label']+1))
             mask = mask_label * mask_depth
             if len(mask.nonzero()[0]) > self.minimum_num_pt:
                 break
@@ -160,26 +151,27 @@ class PoseDataset(data.Dataset):
         rmin, rmax, cmin, cmax = get_bbox(mask_label)
         img = np.transpose(np.array(img)[:, :, :3], (2, 0, 1))[:, rmin:rmax, cmin:cmax]
 
-        if self.list[index][:8] == 'data_syn':
-            seed = random.choice(self.real)
-            back = np.array(self.trancolor(Image.open('{0}/{1}-color.png'.format(self.root, seed)).convert("RGB")))
-            back = np.transpose(back, (2, 0, 1))[:, rmin:rmax, cmin:cmax]
-            img_masked = back * mask_back[rmin:rmax, cmin:cmax] + img
-        else:
-            img_masked = img
+        # if self.list[index][:8] == 'data_syn':
+        #     seed = random.choice(self.real)
+        #     back = np.array(self.trancolor(Image.open('{0}/{1}-color.png'.format(self.root, seed)).convert("RGB")))
+        #     back = np.transpose(back, (2, 0, 1))[:, rmin:rmax, cmin:cmax]
+        #     img_masked = back * mask_back[rmin:rmax, cmin:cmax] + img
+        # else:
+        img_masked = img
 
         if self.add_noise and add_front:
             img_masked = img_masked * mask_front[rmin:rmax, cmin:cmax] + front[:, rmin:rmax, cmin:cmax] * ~(mask_front[rmin:rmax, cmin:cmax])
 
-        if self.list[index][:8] == 'data_syn':
-            img_masked = img_masked + np.random.normal(loc=0.0, scale=7.0, size=img_masked.shape)
+        # if self.list[index][:8] == 'data_syn':
+        #     img_masked = img_masked + np.random.normal(loc=0.0, scale=7.0, size=img_masked.shape)
 
         # p_img = np.transpose(img_masked, (1, 2, 0))
         # scipy.misc.imsave('temp/{0}_input.png'.format(index), p_img)
         # scipy.misc.imsave('temp/{0}_label.png'.format(index), mask[rmin:rmax, cmin:cmax].astype(np.int32))
+        #print([k for k in meta[obj[idx]]])
+        target_r = quaternion_matrix(meta[obj[idx]]['pose'][1])[:3,:3]
+        target_t = np.array([meta[obj[idx]]['pose'][0]])
 
-        target_r = meta[obj[idx]]['poses'][1]
-        target_t = np.array([meta[obj[idx]]['poses'][0].flatten()])
         add_t = np.array([random.uniform(-self.noise_trans, self.noise_trans) for i in range(3)])
 
         choose = mask[rmin:rmax, cmin:cmax].flatten().nonzero()[0]
@@ -198,8 +190,8 @@ class PoseDataset(data.Dataset):
 
         #cam_scale = meta['factor_depth'][0][0]
         pt2 = depth_masked #/ cam_scale
-        pt0 = (ymap_masked - cam_cx) * pt2 / cam_fx
-        pt1 = (xmap_masked - cam_cy) * pt2 / cam_fy
+        pt0 = (ymap_masked - self.cam_cx) * pt2 / self.cam_fx
+        pt1 = (xmap_masked - self.cam_cy) * pt2 / self.cam_fy
         cloud = np.concatenate((pt0, pt1, pt2), axis=1)
         if self.add_noise:
             cloud = np.add(cloud, add_t)
@@ -209,18 +201,17 @@ class PoseDataset(data.Dataset):
         #    fw.write('{0} {1} {2}\n'.format(it[0], it[1], it[2]))
         # fw.close()
 
-        dellist = [j for j in range(0, len(self.cld[meta[obj[idx]]['label']]))]
+        dellist = [j for j in range(0, len(self.cld[meta[obj[idx]]['label']+1]))]
         if self.refine:
-            dellist = random.sample(dellist, len(self.cld[meta[obj[idx]]['label']]) - self.num_pt_mesh_large)
+            dellist = random.sample(dellist, len(self.cld[meta[obj[idx]]['label']+1]) - self.num_pt_mesh_large)
         else:
-            dellist = random.sample(dellist, len(self.cld[meta[obj[idx]]['label']]) - self.num_pt_mesh_small)
-        model_points = np.delete(self.cld[meta[obj[idx]]['label']], dellist, axis=0)
+            dellist = random.sample(dellist, len(self.cld[meta[obj[idx]]['label']+1]) - self.num_pt_mesh_small)
+        model_points = np.delete(self.cld[meta[obj[idx]]['label']+1], dellist, axis=0)
 
         # fw = open('temp/{0}_model_points.xyz'.format(index), 'w')
         # for it in model_points:
         #    fw.write('{0} {1} {2}\n'.format(it[0], it[1], it[2]))
         # fw.close()
-
         target = np.dot(model_points, target_r.T)
         if self.add_noise:
             target = np.add(target, target_t + add_t)
@@ -237,7 +228,7 @@ class PoseDataset(data.Dataset):
                self.norm(torch.from_numpy(img_masked.astype(np.float32))), \
                torch.from_numpy(target.astype(np.float32)), \
                torch.from_numpy(model_points.astype(np.float32)), \
-               torch.LongTensor([int(meta[obj[idx]]['label']) - 1])
+               torch.LongTensor([int(meta[obj[idx]]['label']+1)])
 
     def __len__(self):
         return self.length
