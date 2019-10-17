@@ -88,6 +88,10 @@ class SegDataset(data.Dataset):
         obj = [k for k in meta]
         obj = np.append(obj, [0], axis=0)
         target = copy.deepcopy(label)
+        for i in range(target.shape[0]):
+            for j in range(target.shape[1]):
+                if target[i,j]!=0:
+                    target[i,j]=(target[i,j]-1)//4+1
 
         rgb = np.transpose(rgb, (2, 0, 1))
         rgb = self.norm(torch.from_numpy(rgb.astype(np.float32)))
