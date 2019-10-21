@@ -34,9 +34,9 @@ def loss_calculation(pred_r, pred_t, pred_c, target, model_points, idx, points, 
     ori_t = pred_t
     points = points.contiguous().view(bs * num_p, 1, 3)
     pred_c = pred_c.contiguous().view(bs * num_p)
+    pred_c = torch.clamp(pred_c,min=0.1,max=1.0)
 
     pred = torch.add(torch.bmm(model_points, base), points + pred_t)
-
     if not refine:
         if idx[0].item() in sym_list:
             target = target[0].transpose(1, 0).contiguous().view(3, -1)
@@ -53,7 +53,6 @@ def loss_calculation(pred_r, pred_t, pred_c, target, model_points, idx, points, 
     pred_c = pred_c.view(bs, num_p)
     how_max, which_max = torch.max(pred_c, 1)
     dis = dis.view(bs, num_p)
-
 
     t = ori_t[which_max[0]] + points[which_max[0]]
     points = points.view(1, bs * num_p, 3)

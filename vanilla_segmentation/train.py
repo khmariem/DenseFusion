@@ -22,7 +22,7 @@ sys.path.append("..")
 from lib.utils import setup_logger
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset_root', default='/home/data1/jeremy/YCB_Video_Dataset', help="dataset root dir (''YCB_Video Dataset'')")
+parser.add_argument('--dataset_root', default='/home/nrp-telechan/Downloads/LabelFusion_Sample_Data/logs/dataset/obj', help="dataset root dir (''wrs Dataset'')")
 parser.add_argument('--batch_size', default=3, help="batch size")
 parser.add_argument('--n_epochs', default=600, help="epochs to train")
 parser.add_argument('--workers', type=int, default=10, help='number of data loading workers')
@@ -38,9 +38,9 @@ if __name__ == '__main__':
     random.seed(opt.manualSeed)
     torch.manual_seed(opt.manualSeed)
 
-    dataset = SegDataset(opt.dataset_root, '../datasets/ycb/dataset_config/train_data_list.txt', True, 5000)
+    dataset = SegDataset(opt.dataset_root, '../datasets/wrs/dataset_config/train_data_list.txt', True, 5000)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True, num_workers=int(opt.workers))
-    test_dataset = SegDataset(opt.dataset_root, '../datasets/ycb/dataset_config/test_data_list.txt', False, 1000)
+    test_dataset = SegDataset(opt.dataset_root, '../datasets/wrs/dataset_config/test_data_list.txt', False, 1000)
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=True, num_workers=int(opt.workers))
 
     print(len(dataset), len(test_dataset))

@@ -21,7 +21,7 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
 from datasets.ycb.dataset import PoseDataset as PoseDataset_ycb
-from datasets.linemod.dataset import PoseDataset as PoseDataset_linemod
+#from datasets.linemod.dataset import PoseDataset as PoseDataset_linemod
 from datasets.wrs.dataset import PoseDataset as PoseDataset_wrs
 from lib.network import PoseNet, PoseRefineNet
 from lib.loss import Loss
@@ -35,7 +35,7 @@ parser.add_argument('--batch_size', type=int, default = 8, help='batch size')
 parser.add_argument('--workers', type=int, default = 10, help='number of data loading workers')
 parser.add_argument('--lr', default=0.0001, help='learning rate')
 parser.add_argument('--lr_rate', default=0.3, help='learning rate decay rate')
-parser.add_argument('--w', default=0.015, help='learning rate')
+parser.add_argument('--w', default=0.015, help='learning rate') # mariem 0.015
 parser.add_argument('--w_rate', default=0.3, help='learning rate decay rate')
 parser.add_argument('--decay_margin', default=0.016, help='margin to decay lr & w')
 parser.add_argument('--refine_margin', default=0.013, help='margin to start the training of iterative refinement')
@@ -46,7 +46,6 @@ parser.add_argument('--resume_posenet', type=str, default = '',  help='resume Po
 parser.add_argument('--resume_refinenet', type=str, default = '',  help='resume PoseRefineNet model')
 parser.add_argument('--start_epoch', type=int, default = 1, help='which epoch to start')
 opt = parser.parse_args()
-
 
 def main():
     opt.manualSeed = random.randint(1, 10000)
@@ -67,27 +66,40 @@ def main():
         opt.repeat_epoch = 20
     elif opt.dataset == "wrs":
         opt.num_objects = 4
-        #opt.num_points = 500
+        opt.num_points = 500
         opt.outf = 'trained_models/wrs'
         opt.log_dir = 'experiments/logs/wrs'
-        opt.repeat_epoch = 20
+        opt.repeat_epoch = 10 #20 mariem
     else:
         print('Unknown dataset')
         return
 
     estimator = PoseNet(num_points = opt.num_points, num_obj = opt.num_objects)
     estimator.cuda()
+    #estimator_dict=torch.load("/home/nrp-telechan/DenseFusion/trained_models/ycb/pose_model_26_0.012863246640872631.pth")
+    #print(estimator_dict)
+    #print('------------')
+    #estimator_model_dict=estimator.state_dict()
+    #print(estimator_model_dict)
+    #estimator_dict={k: v for k, v in estimator_dict.items() if k in estimator_model_dict}
+    #print(estimator_dict)
     #Load pre-trained network
-    estimator.load_state_dict(torch.load(opt.model), strict=False)
+    #estimator_model_dict.update(estimator_dict)
+    #print(estimator_dict)
+    #estimator.load_state_dict(estimator_model_dict, strict=False)
     #estimator.eval()
-    estimator.train()
+    #estimator.train()
 
     refiner = PoseRefineNet(num_points = opt.num_points, num_obj = opt.num_objects)
     refiner.cuda()
-    #Load pre-trained network
-    refiner.load_state_dict(torch.load(opt.refine_model), strict=False)
+    # refiner_dict=torch.load("/home/nrp-telechan/DenseFusion/trained_models/ycb/pose_refine_model_69_0.009449292959118935.pth")
+    # refiner_model_dict=refiner.state_dict()
+    # refiner_dict={k: v for k, v in refiner_dict.items() if k in refiner_model_dict}
+    # #Load pre-trained network
+    # refiner_model_dict.update(refiner_dict)
+    # refiner.load_state_dict(refiner_model_dict) # strict=False)
     #refiner.eval()
-    refiner.train()
+    #refiner.train()
 
     if opt.resume_posenet != '':
         estimator.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_posenet)))
@@ -151,14 +163,15 @@ def main():
         optimizer.zero_grad()
 
         for rep in range(opt.repeat_epoch):
+            
             for i, data in enumerate(dataloader, 0):
                 points, choose, img, target, model_points, idx = data
                 points, choose, img, target, model_points, idx = Variable(points).cuda(), \
-                                                                 Variable(choose).cuda(), \
-                                                                 Variable(img).cuda(), \
-                                                                 Variable(target).cuda(), \
-                                                                 Variable(model_points).cuda(), \
-                                                                 Variable(idx).cuda()
+                                                                Variable(choose).cuda(), \
+                                                                Variable(img).cuda(), \
+                                                                Variable(target).cuda(), \
+                                                                Variable(model_points).cuda(), \
+                                                                Variable(idx).cuda()
                 pred_r, pred_t, pred_c, emb = estimator(img, points, choose, idx)
                 loss, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, idx, points, opt.w, opt.refine_start)
                 
@@ -194,15 +207,15 @@ def main():
         test_count = 0
         estimator.eval()
         refiner.eval()
-
+        
         for j, data in enumerate(testdataloader, 0):
             points, choose, img, target, model_points, idx = data
             points, choose, img, target, model_points, idx = Variable(points).cuda(), \
-                                                             Variable(choose).cuda(), \
-                                                             Variable(img).cuda(), \
-                                                             Variable(target).cuda(), \
-                                                             Variable(model_points).cuda(), \
-                                                             Variable(idx).cuda()
+                                                            Variable(choose).cuda(), \
+                                                            Variable(img).cuda(), \
+                                                            Variable(target).cuda(), \
+                                                            Variable(model_points).cuda(), \
+                                                            Variable(idx).cuda()
             pred_r, pred_t, pred_c, emb = estimator(img, points, choose, idx)
             _, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, idx, points, opt.w, opt.refine_start)
 
