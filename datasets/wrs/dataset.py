@@ -63,6 +63,7 @@ class PoseDataset(data.Dataset):
             
             class_id += 1
 
+        #TODO
         self.cam_cx = 320.0
         self.cam_cy = 240.0
         self.cam_fx = 528.0
@@ -76,7 +77,7 @@ class PoseDataset(data.Dataset):
         self.noise_img_scale = 7.0
         self.minimum_num_pt = 50
         self.norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        self.symmetry_obj_idx = [1] #[1] mariem
+        self.symmetry_obj_idx = []
         self.num_pt_mesh_small = 500
         self.num_pt_mesh_large = 2600
         self.refine = refine
@@ -85,12 +86,12 @@ class PoseDataset(data.Dataset):
 
     def __getitem__(self, index):
         img = Image.open('{0}/{1}.png'.format(self.root, self.list[index]))
-        depth = np.array(Image.open('{0}/{1}-depth.png'.format(self.root, self.list[index])))
-        label = np.array(Image.open('{0}/{1}-label.png'.format(self.root, self.list[index])))
-        with open('{0}/{1}-poses.yaml'.format(self.root, self.list[index]), 'r') as s:
+        depth = np.array(Image.open('{0}/{1}_depth.png'.format(self.root, self.list[index])))
+        #label = np.array(Image.open('{0}/{1}-label.png'.format(self.root, self.list[index])))
+        with open('{0}/{1}.yaml'.format(self.root, self.list[index]), 'r') as s:
             meta = yaml.safe_load(s)
 
-        mask_back = ma.getmaskarray(ma.masked_equal(label, 0))
+        #mask_back = ma.getmaskarray(ma.masked_equal(label, 0))
 
         self.add_noise=False
         add_front = False
@@ -115,6 +116,7 @@ class PoseDataset(data.Dataset):
                     label = t_label
                     add_front = True
                     break
+        '''
         obj=[k for k in meta]
         n=[int(meta[k]['num_pixels']) for k in meta]
         labels,nb=np.unique(label,return_counts=True)
@@ -126,12 +128,16 @@ class PoseDataset(data.Dataset):
         mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
         mask_label = ma.getmaskarray(ma.masked_equal(label, labels[idx]))
         mask = mask_label * mask_depth
+        '''
+        it='sd'
+        mask = ma.getmaskarray(ma.masked_not_equal(depth, 0))
 
 
         if self.add_noise:
             img = self.trancolor(img)
-
-        rmin, rmax, cmin, cmax = get_bbox(mask_label)
+        #TODO
+        #rmin, rmax, cmin, cmax = get_bbox(mask_label)
+        rmin, rmax, cmin, cmax = [250.0,250.0,250.0,250.0]
         img = np.transpose(np.array(img)[:, :, :3], (2, 0, 1))[:, rmin:rmax, cmin:cmax]
 
         # if self.list[index][:8] == 'data_syn':
@@ -152,14 +158,13 @@ class PoseDataset(data.Dataset):
         # scipy.misc.imsave('temp/{0}_input.png'.format(index), p_img)
         # scipy.misc.imsave('temp/{0}_label.png'.format(index), mask[rmin:rmax, cmin:cmax].astype(np.int32))
         #print([k for k in meta[obj[idx]]])
+
         target_r = quaternion_matrix(meta[it]['pose'][1])[:3,:3]
         target_t = np.array([meta[it]['pose'][0]])
 
         add_t = np.array([random.uniform(-self.noise_trans, self.noise_trans) for i in range(3)])
 
         choose = mask[rmin:rmax, cmin:cmax].flatten().nonzero()[0]
-        if len(choose)==0:
-            choose = mask_label[rmin:rmax, cmin:cmax].flatten().nonzero()[0]
 
         if len(choose) > self.num_pt:
             c_mask = np.zeros(len(choose), dtype=int)
@@ -175,10 +180,12 @@ class PoseDataset(data.Dataset):
         choose = np.array([choose])
 
         #cam_scale = meta['factor_depth'][0][0]
-        pt2 = depth_masked #/ cam_scale
+        #TODO
+        cam_scale = 1.0
+        pt2 = depth_masked / cam_scale
         pt0 = (ymap_masked - self.cam_cx) * pt2 / self.cam_fx
         pt1 = (xmap_masked - self.cam_cy) * pt2 / self.cam_fy
-        cloud = np.concatenate((pt0, pt1, pt2), axis=1)/ 1000.0
+        cloud = np.concatenate((pt0, pt1, pt2), axis=1) #/ 1000.0
         if self.add_noise:
             cloud = np.add(cloud, add_t)
 
@@ -200,9 +207,9 @@ class PoseDataset(data.Dataset):
         # fw.close()
         target = np.dot(model_points, target_r.T)
         if self.add_noise:
-            target = np.add(target, target_t/ 1000.0 + add_t)
+            target = np.add(target, target_t + add_t) #target_t/1000.0
         else:
-            target = np.add(target, target_t/ 1000.0)
+            target = np.add(target, target_t) #target_t/1000.0
         
         # fw = open('temp/{0}_tar.xyz'.format(index), 'w')
         # for it in target:
@@ -233,6 +240,7 @@ border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520
 img_width = 480
 img_length = 640
 
+'''
 def get_bbox(label):
     rows = np.any(label, axis=1)
     cols = np.any(label, axis=0)
@@ -272,3 +280,4 @@ def get_bbox(label):
         cmax = img_length
         cmin -= delt
     return rmin, rmax, cmin, cmax
+'''
